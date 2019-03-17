@@ -24,6 +24,11 @@ class WP(): # win_pattern: mechanism to accumulate moves & signal a winner
     self.plays[x] = player
     return abs(self.value) == 3 # indicate a winner
 
+  def reset(self):
+    self.value = 0
+    self.plays = [None]*3
+    
+
 class Cell(): # a square on the board
   
   dummy_player = Player(' 0') # dummy player indicating each cell initially unoccupied
@@ -53,41 +58,41 @@ class Cell(): # a square on the board
   def reset(self):
     self.player = self.dummy_player
 
-  @classmethod
-  def reset_wp(self):
-    for wp in wps: wp.value = 0; wp.plays = [None]*3
-
 class Game:
 
-  board = {(row+col):Cell(row, col) for row in '123' for col in '123'}
-  players = [Player(x) for x in ('X-1','O1')]
+  def display(self, *args):
+    print('-Board-')
+    for cell in (self.board.values()):
+      print(cell.player.code, end='')
+      if cell.c != 2: print('|',end='')
+      if cell.div: print('\n-+-+-')
+    print()
+      
+  def quit(self, *args): sys.exit(0)
+
+  def error(self, *args): print('invalid move')
 
   def play(self):
-    items = self.board
-    items.update(dict(d=display, q=quit))
+    self.board = {(row+col):Cell(row, col) for row in '123' for col in '123'}
+    players = [Player(x) for x in ('X-1','O1')]
+    menu_items = dict(self.board.copy(), d=self.display, q=self.quit)
     while True:
       print('Starting game.')
       count = 0
-      for cell in board: cell.reset()
-      Cell.reset_wp()
+      for cell in self.board.values():
+        cell.reset()
+      for wp in Cell.wps:
+        wp.reset()
       player = players[0] # start with X
       while count < 9: # go thru moves until win, quit or out of moves
         user_in = input(f'player {player} row and column of cell (rc) or d=display, q=quit')
-        item = items.get(user_in, error)
+        item = menu_items.get(user_in, self.error)
         result = item(player) # item could be a cell or a function
         if result == 'O': print('Cell is occupied.')
-        elif result == 'W': print(f'Player {player} wins. ', end=''); break
-        elif result == 'P': player = players[player.value-1]; count += 1
+        elif result == 'W': print(f'Player {player.code} wins. ', end=''); break
+        elif result == 'P': player = player = players[0] if player.value == 1 else players[1]; count += 1
         elif result is not None: print('Unexpected result" {result}"') 
         if count == 9: print('Game ends in a draw. ', end='')      
 
-  def display(*args):
-    for cell in board.values():
-      print(cell.code, sep='|', end='')
-      if cell.div: print('\n-+-+-')
-      
-  def quit(*args): sys.exit(0)
-
-  def error(*args): print('invalid move')
 
 Game().play()
