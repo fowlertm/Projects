@@ -36,7 +36,8 @@ concepts = [
     'Stateful functions',
     'Mainframe',
     'syntax variable',
-    ''
+    'beam.Map() v.s. beam.FlatMap()'
+    ,
 
 
 
