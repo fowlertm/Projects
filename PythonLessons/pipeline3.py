@@ -3,8 +3,6 @@
 import sqlite3 as sq
 db = sq.connect('pipeline_db')
 
-
-
 def main(spec): # We pass in a specification below
     
     pipelineset = []
@@ -111,8 +109,11 @@ def main(spec): # We pass in a specification below
         stages = spec.split('|')
 
         for stage_no, stage in enumerate(stages):
-            stage_name, *args = stage.split()
-            stage_name = stage_name.lower()
+            stage_name, *args = stage.split() 
+            curs = db.execute("SELECT stagename FROM stage WHERE abbrev =  ?;", (stage_name,))
+            print(curs)
+            stage_name = curs.fetchone()
+            print(stage_name)
             cls = stage_dict.get(stage_name, None)
             if cls.driver:
                 pos = '0' if stage_no == 0 else '1'
