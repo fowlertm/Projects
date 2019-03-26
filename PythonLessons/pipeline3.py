@@ -107,13 +107,23 @@ def main(spec): # We pass in a specification below
         pipeline = []
         prev = None
         stages = spec.split('|')
+        labels = dict()
 
         for stage_no, stage in enumerate(stages):
-            stage_name, *args = stage.split() 
-            curs = db.execute("SELECT stagename FROM stage WHERE abbrev =  ?;", (stage_name,))
-            print(curs)
-            stage_name = curs.fetchone()
-            print(stage_name)
+            args = stage.split()
+            if args[0][:-1] == ':':
+                label = args[0][:-2]
+                if label not in labels:
+                    if len(args) == 1:
+                        raise NameError
+                    labels.update({label: [pipeline, stage_no])
+                x,y = labels[label]
+                
+            sql = f"SELECT stagename FROM stage WHERE stagename LIKE ? AND  min_length <= ?;"
+            tup = (stage_name + '%', len(stage_name))
+            # print(sql, tup)
+            curs = db.execute(sql, tup)
+            stage_name = curs.fetchone()[0]
             cls = stage_dict.get(stage_name, None)
             if cls.driver:
                 pos = '0' if stage_no == 0 else '1'
@@ -128,6 +138,7 @@ def main(spec): # We pass in a specification below
         pipe[0].run()
 
 if __name__ == '__main__':
+    input = __builtins__.input; print = __builtins__.print
     main('console|locate /apple/|console ? literal bob|console') # modified to take two pipelines
 
 data = ['banana', 'apple', ' fig']
