@@ -3,9 +3,7 @@
 import sqlite3 as sq
 db = sq.connect('pipeline_db')
 
-def main(spec): # We pass in a specification below
-    
-    pipelineset = []
+def main(pipelineset_spec): # We pass in a specification below
 
     def add(cls=None, d={}):
         if cls: d.update({cls.__name__.lower(): cls}); return cls
@@ -68,9 +66,11 @@ def main(spec): # We pass in a specification below
             self.output1 = self.outstreams[1].output 
         
         def setup(self, args):
-            search = args[0].strip()
-            delim = search[0]
-            if search[-1] == delim: self.search = args[0][1:-1]
+            print("We're here")
+            delstr = args[0].strip()
+            print(delstr)
+            delim = delstr[0]
+            if delstr[-1] == delim: self.search = delstr[1:-1]
             else: return 'Locate missing final delimiter'
 
         def run(self, record):
@@ -100,39 +100,56 @@ def main(spec): # We pass in a specification below
 
     stage_dict = add()
 
+    class PipelineSet:
+        def __init__(self):
+            labels = dict()
+    pipelineset = PipelineSet()
+    class Pipeline:
+        def __init__(self, spec):
+            prev = None
+            stages = spec.split('|')
+            for stage_no, stage_spec in enumerate(stages):
+                args = stage_spec.split(maxsplit=1)
+                if args[0][:-1] == ':':
+                    label = args[0][:-2]
+                    if label not in labels:
+                        if len(args) == 1:
+                            raise NameError
+                        labels.update({label: [pipeline, stage_no]})
+                    x,y = labels[label]
+                    stage_spec = args[1]   
+                else:
+                    stage_spec = args[0]
+
+                is_space = stage_spec.find(' ')
+                if is_space == -1:
+                    stage_name = stage_spec
+                else:
+                    stage_name = stage_spec[:is_space]
+
+                sql = f"SELECT stagename FROM stage WHERE stagename LIKE ? AND  min_length <= ?;"
+                tup = (stage_name + '%', len(stage_name))
+                curs = db.execute(sql, tup)
+                stage_name = curs.fetchone()[0]
+                cls = stage_dict.get(stage_name, None)
+                if cls.driver:
+                    pos = '0' if stage_no == 0 else '1'
+                    cls = stage_dict.get(stage_name+pos, None)
+                stage = cls(pipeline)
+                set_call = stage.setup(args)
+                if set_call:
+                    print(set_call)
+
+
+                # stage.setup(args)
+                pipeline.append(stage)
+                if prev: prev.output = stage.run
+                prev = stage 
+
 
     pipelinespecs = [pipe for pipe in spec.split('?')]
     for spec in pipelinespecs:
-
-        pipeline = []
-        prev = None
-        stages = spec.split('|')
-        labels = dict()
-
-        for stage_no, stage in enumerate(stages):
-            args = stage.split()
-            if args[0][:-1] == ':':
-                label = args[0][:-2]
-                if label not in labels:
-                    if len(args) == 1:
-                        raise NameError
-                    labels.update({label: [pipeline, stage_no])
-                x,y = labels[label]
-                
-            sql = f"SELECT stagename FROM stage WHERE stagename LIKE ? AND  min_length <= ?;"
-            tup = (stage_name + '%', len(stage_name))
-            # print(sql, tup)
-            curs = db.execute(sql, tup)
-            stage_name = curs.fetchone()[0]
-            cls = stage_dict.get(stage_name, None)
-            if cls.driver:
-                pos = '0' if stage_no == 0 else '1'
-                cls = stage_dict.get(stage_name+pos, None)
-            stage = cls(pipeline)
-            stage.setup(args)
-            pipeline.append(stage)
-            if prev: prev.output = stage.run
-            prev = stage 
+        pipeline = Pipeline(spec)
         pipelineset.append(pipeline)
     for pipe in pipelineset:
         pipe[0].run()
